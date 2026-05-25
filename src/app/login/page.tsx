@@ -21,10 +21,15 @@ export default function LoginPage() {
   }, [router, supabase])
 
   async function handleOAuth(provider: "google" | "github") {
+    const queryParams: Record<string, string> = {}
+    if (provider === "google") {
+      queryParams.prompt = "select_account"
+    }
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams,
       },
     })
     if (error) {
