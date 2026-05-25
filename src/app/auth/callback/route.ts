@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 
-export async function POST(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
-  const provider = searchParams.get("provider") as "google" | "github"
+export async function GET(request: NextRequest) {
+  const { searchParams, origin } = new URL(request.url)
+  const code = searchParams.get("code")
 
-  if (!provider) {
-    return NextResponse.redirect(new URL("/login", request.url))
+  if (!code) {
+    return NextResponse.redirect(new URL("/login", origin))
   }
+
+  const response = NextResponse.redirect(new URL("/dashboard", origin))
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,22 +20,19 @@ export async function POST(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options)
+          })
         },
       },
     }
   )
 
-  const { data } = await supabase.auth.signInWithOAuth({
-    provider,
-    options: {
-      redirectTo: `${new URL(request.url).origin}/auth/callback`,
-    },
-  })
+  const { error } = await supabase.auth.exchangeCodeForSession(code)
 
-  if (data.url) {
-    return NextResponse.redirect(data.url)
+  if (error) {
+    return NextResponse.redirect(new URL("/login?error=auth", origin))
   }
 
-  return NextResponse.redirect(new URL("/login", request.url))
+  return response
 }

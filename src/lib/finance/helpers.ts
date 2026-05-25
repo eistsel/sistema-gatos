@@ -30,11 +30,14 @@ export function getDaysInMonth(month: number, year: number): number {
 
 export function getCategoryIcon(category: string): string {
   const icons: Record<string, string> = {
-    vivienda: "🏠", alimentacion: "🛒", transporte: "🚗",
-    salud: "🏥", ropa: "👗", suscripciones: "📱",
-    entretenimiento: "🎮", educacion: "🎓", deudas: "💳",
-    regalos: "🎁", emergencias: "🆘", otros: "📦",
-    sueldo: "💼", freelance: "💻", ingreso_pasivo: "🏦",
+    vivienda: "Home", alimentacion: "ShoppingCart", transporte: "Car",
+    salud: "HeartPulse", ropa: "Shirt", suscripciones: "Radio",
+    entretenimiento: "Gamepad2", educacion: "GraduationCap", deudas: "CreditCard",
+    regalos: "Gift", emergencias: "TriangleAlert", otros: "Package",
+    sueldo: "Briefcase", freelance: "Laptop", ingreso_pasivo: "TrendingUp",
   }
-  return icons[category] ?? "📦"
+  return icons[category] ?? "Package"
 }
+
+
+

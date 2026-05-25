@@ -11,8 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { createClient } from "@/lib/supabase/client"
 import { formatCurrency } from "@/lib/finance/helpers"
 import type { Account, AccountType } from "@/types/database"
-import { Plus } from "lucide-react"
+import { Plus, Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
+import { z } from "zod"
 
 const accountTypeLabels: Record<AccountType, string> = {
   ahorro: "Ahorro",
@@ -22,18 +23,42 @@ const accountTypeLabels: Record<AccountType, string> = {
 }
 
 const accountTypeColors: Record<AccountType, string> = {
-  ahorro: "bg-emerald-100 text-emerald-700",
-  corriente: "bg-blue-100 text-blue-700",
-  efectivo: "bg-amber-100 text-amber-700",
-  tarjeta_credito: "bg-red-100 text-red-700",
+  ahorro: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400",
+  corriente: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400",
+  efectivo: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400",
+  tarjeta_credito: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400",
 }
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null)
 
   useEffect(() => { loadData() }, [])
+
+  function handleEdit(a: Account) {
+    setEditingAccount(a)
+    setOpen(true)
+  }
+
+  function handleNew() {
+    setEditingAccount(null)
+    setOpen(true)
+  }
+
+  async function handleDelete(id: string) {
+    if (!window.confirm("¿Eliminar esta cuenta?")) return
+    const supabase = createClient()
+    const { error } = await supabase.from("accounts").delete().eq("id", id)
+    if (!error) { toast.success("Cuenta eliminada"); loadData() }
+    else toast.error("Error al eliminar")
+  }
+
+  function handleClose() {
+    setOpen(false)
+    setEditingAccount(null)
+  }
 
   async function loadData() {
     const supabase = createClient()
@@ -50,60 +75,70 @@ export default function AccountsPage() {
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Cuentas</h1>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger className="inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700">
+          <h1 className="text-2xl font-bold text-foreground">Cuentas</h1>
+          <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); setOpen(v) }}>
+            <DialogTrigger onClick={handleNew} className="inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700">
               <Plus className="h-4 w-4" /> Nueva cuenta
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
-              <DialogHeader><DialogTitle>Nueva cuenta</DialogTitle></DialogHeader>
-              <AccountForm onSuccess={() => { loadData(); setOpen(false) }} />
+              <DialogHeader><DialogTitle>{editingAccount ? "Editar cuenta" : "Nueva cuenta"}</DialogTitle></DialogHeader>
+              <AccountForm initial={editingAccount} onSuccess={() => { loadData(); handleClose() }} />
             </DialogContent>
           </Dialog>
         </div>
 
-        <div className="grid grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
           <Card>
             <CardContent className="p-5">
-              <p className="text-sm text-gray-500">Activos netos</p>
-              <p className="text-2xl font-bold text-emerald-600">{formatCurrency(netAssets)}</p>
+              <p className="text-sm text-muted-foreground">Activos netos</p>
+              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(netAssets)}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-5">
-              <p className="text-sm text-gray-500">Deudas</p>
-              <p className="text-2xl font-bold text-red-600">{formatCurrency(netDebt)}</p>
+              <p className="text-sm text-muted-foreground">Deudas</p>
+              <p className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(netDebt)}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-5">
-              <p className="text-sm text-gray-500">Patrimonio neto</p>
-              <p className={`text-2xl font-bold ${netWorth >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatCurrency(netWorth)}</p>
+              <p className="text-sm text-muted-foreground">Patrimonio neto</p>
+              <p className={`text-2xl font-bold ${netWorth >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>{formatCurrency(netWorth)}</p>
             </CardContent>
           </Card>
         </div>
 
         <div className="grid gap-4">
           {loading ? (
-            <div className="text-center text-gray-500 py-8">Cargando...</div>
+            <div className="text-center text-muted-foreground py-8">Cargando...</div>
           ) : accounts.length === 0 ? (
-            <div className="text-center text-gray-400 py-8">Sin cuentas registradas</div>
+            <div className="text-center text-muted-foreground py-8">Sin cuentas registradas</div>
           ) : accounts.map((account) => (
             <Card key={account.id}>
               <CardContent className="p-5 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="space-y-1">
-                    <h3 className="font-semibold text-gray-900">{account.name}</h3>
+                    <h3 className="font-semibold text-foreground">{account.name}</h3>
                     <Badge className={accountTypeColors[account.type]} variant="outline">{accountTypeLabels[account.type]}</Badge>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className={`text-lg font-bold ${account.type === "tarjeta_credito" ? "text-red-600" : "text-gray-900"}`}>
-                    {account.type === "tarjeta_credito" ? "-" : ""}{formatCurrency(account.balance)}
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    {account.include_in_net ? "Incluido en neto" : "Excluido de neto"}
-                  </p>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <p className={`text-lg font-bold ${account.type === "tarjeta_credito" ? "text-red-600 dark:text-red-400" : "text-foreground"}`}>
+                      {account.type === "tarjeta_credito" ? "-" : ""}{formatCurrency(account.balance)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {account.include_in_net ? "Incluido en neto" : "Excluido de neto"}
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <button onClick={() => handleEdit(account)} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" title="Editar">
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => handleDelete(account.id)} className="p-1.5 rounded-md text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors" title="Eliminar">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -114,41 +149,56 @@ export default function AccountsPage() {
   )
 }
 
-function AccountForm({ onSuccess }: { onSuccess: () => void }) {
-  const [name, setName] = useState("")
-  const [type, setType] = useState<AccountType>("corriente")
-  const [balance, setBalance] = useState("")
-  const [includeInNet, setIncludeInNet] = useState(true)
+const accountSchema = z.object({
+  name: z.string().min(1, "El nombre es requerido"),
+  balance: z.string().refine((v) => v === "" || (!isNaN(parseFloat(v)) && parseFloat(v) >= 0), "Debe ser un número válido"),
+})
+
+function AccountForm({ initial, onSuccess }: { initial: Account | null; onSuccess: () => void }) {
+  const [name, setName] = useState(initial?.name ?? "")
+  const [type, setType] = useState<AccountType>(initial?.type ?? "corriente")
+  const [balance, setBalance] = useState(initial ? String(initial.balance) : "")
+  const [includeInNet, setIncludeInNet] = useState(initial?.include_in_net ?? true)
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name) return
+    const result = accountSchema.safeParse({ name, balance })
+    if (!result.success) {
+      const fieldErrors: Record<string, string> = {}
+      for (const issue of result.error.issues) {
+        const field = issue.path[0] as string
+        if (!fieldErrors[field]) fieldErrors[field] = issue.message
+      }
+      setErrors(fieldErrors)
+      return
+    }
+    setErrors({})
     setSubmitting(true)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const { error } = await supabase.from("accounts").insert({
-      user_id: user.id,
-      name,
-      type,
-      balance: parseFloat(balance || "0"),
-      include_in_net: includeInNet,
-    })
+    const payload = { name, type, balance: parseFloat(balance || "0"), include_in_net: includeInNet }
+
+    const { error } = initial
+      ? await supabase.from("accounts").update(payload).eq("id", initial.id)
+      : await supabase.from("accounts").insert({ ...payload, user_id: user.id })
     setSubmitting(false)
-    if (!error) { onSuccess(); toast.success("Cuenta creada") }
-    else if (error) toast.error("Error al crear cuenta")
+    if (!error) { onSuccess(); toast.success(initial ? "Cuenta actualizada" : "Cuenta creada") }
+    else toast.error("Error al guardar")
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="text-sm text-gray-600 mb-1 block">Nombre</label>
-        <Input placeholder="BCP Ahorros" value={name} onChange={(e) => setName(e.target.value)} required />
+        <label className="text-sm text-muted-foreground mb-1 block">Nombre</label>
+        <Input placeholder="BCP Ahorros" value={name} onChange={(e) => { setName(e.target.value); setErrors((prev) => ({ ...prev, name: "" })) }} />
+        {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
       </div>
       <div>
-        <label className="text-sm text-gray-600 mb-1 block">Tipo</label>
+        <label className="text-sm text-muted-foreground mb-1 block">Tipo</label>
         <Select value={type} onValueChange={(v) => v && setType(v as AccountType)}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -160,15 +210,16 @@ function AccountForm({ onSuccess }: { onSuccess: () => void }) {
         </Select>
       </div>
       <div>
-        <label className="text-sm text-gray-600 mb-1 block">Balance inicial</label>
-        <Input type="number" step="0.01" placeholder="0.00" value={balance} onChange={(e) => setBalance(e.target.value)} />
+        <label className="text-sm text-muted-foreground mb-1 block">Balance inicial</label>
+        <Input type="number" step="0.01" placeholder="0.00" value={balance} onChange={(e) => { setBalance(e.target.value); setErrors((prev) => ({ ...prev, balance: "" })) }} />
+        {errors.balance && <p className="text-xs text-red-500 mt-1">{errors.balance}</p>}
       </div>
-      <label className="flex items-center gap-2 text-sm text-gray-600">
+      <label className="flex items-center gap-2 text-sm text-muted-foreground">
         <input type="checkbox" checked={includeInNet} onChange={(e) => setIncludeInNet(e.target.checked)} className="rounded" />
         Incluir en patrimonio neto
       </label>
       <Button type="submit" disabled={submitting} className="w-full bg-emerald-600 hover:bg-emerald-700">
-        {submitting ? "Guardando..." : "Crear cuenta"}
+        {submitting ? "Guardando..." : initial ? "Actualizar" : "Crear cuenta"}
       </Button>
     </form>
   )
